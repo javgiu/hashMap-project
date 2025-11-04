@@ -1,4 +1,4 @@
-class hashMap {
+class HashMap {
   constructor(capacity = 16, loadFactor = 0.75) {
     this.loadFactor = loadFactor;
     this.capacity = capacity;
@@ -23,9 +23,12 @@ class hashMap {
 
   set(key, value) {
     const position = this.hash(key).bucket;
+    if (position < 0 || position >= this.buckets.length) {
+      throw new Error("Trying to access index out of bounds");
+    }
     const bucket = this.buckets[position];
     // Check for coincidences
-    const coincidence = bucket.find((valuePairs) => valuePairs[0] === key);
+    const coincidence = bucket.find((pair) => pair[0] === key);
     if (coincidence) {
       coincidence[1] = value;
       return;
@@ -39,9 +42,9 @@ class hashMap {
   get(key) {
     let value = null;
     this.buckets.forEach((bucket) => {
-      const valuePairs = bucket.find((valuePairs) => valuePairs[0] === key);
-      if (valuePairs) {
-        value = valuePairs[1];
+      const pair = bucket.find((pair) => pair[0] === key);
+      if (pair) {
+        value = pair[1];
       }
     });
     return value;
@@ -65,10 +68,11 @@ class hashMap {
     const bucket = this.buckets.find((bucket) =>
       bucket.find((pair) => pair[0] === key)
     );
-    console.log(bucket);
-    const index = bucket.indexOf((pair) => pair[0] === 1);
-    bucket.splice(index, 1);
-    this.updateLoadLevels();
+    const index = bucket.findIndex((pair) => pair[0] === key);
+    if (index !== -1) {
+      bucket.splice(index, 1);
+      this.updateLoadLevels();
+    }
   }
 
   length() {
@@ -120,17 +124,16 @@ class hashMap {
 
   expandBuckets() {
     if (this.actualLoad > this.loadFactor) {
-      this.capacity = this.capacity * 2;
-      const bucketsNumber = this.buckets.length;
-      for (let i = 0; i < this.capacity - bucketsNumber; i++) {
-        this.buckets.push([]);
-      }
+      this.capacity *= 2;
+      const oldEntries = this.entries();
+      this.buckets = Array.from({ length: this.capacity }, () => []);
+      oldEntries.forEach(([key, value]) => this.set(key, value));
       this.updateLoadLevels();
-    } else return;
+    }
   }
 }
 
-const test = new hashMap();
+const test = new HashMap();
 test.set("apple", "red");
 test.set("banana", "yellow");
 test.set("carrot", "orange");
@@ -145,10 +148,120 @@ test.set("kite", "pink");
 test.set("lion", "golden");
 test.set("moon", "silver");
 test.set("moon", "gold");
-test.clear();
+test.remove("elephant");
 
-console.log(test.actualLoad);
-console.log(test.capacity);
-console.log(test.values());
-console.log(test.keys());
-console.log(test.entries());
+console.log(test.buckets);
+
+class HashSet {
+  constructor(capacity = 16, loadFactor = 0.75) {
+    this.loadFactor = loadFactor;
+    this.capacity = capacity;
+    this.actualLoad = 0;
+    this.buckets = [];
+
+    for (let i = 0; i < capacity; i++) {
+      this.buckets.push([]);
+    }
+  }
+
+  hash(key) {
+    let bucket = 0;
+    let hashCode = 0;
+    const primeNumber = 31;
+    for (let i = 0; i < key.length; i++) {
+      hashCode = primeNumber * hashCode + key.charCodeAt(i);
+      bucket = hashCode % this.capacity;
+    }
+    return { hashCode, bucket };
+  }
+
+  set(key) {
+    const position = this.hash(key).bucket;
+    if (position < 0 || position >= this.buckets.length) {
+      throw new Error("Trying to access index out of bounds");
+    }
+    const bucket = this.buckets[position];
+    // Check for coincidences
+    const coincidence = bucket.find((keyInBucket) => keyInBucket === key);
+    if (coincidence) {
+      coincidence = key;
+      return;
+    } else {
+      bucket.push(key);
+      this.updateLoadLevels();
+      this.expandBuckets();
+    }
+  }
+
+  get(key) {
+    let returnedKey = null;
+    this.buckets.forEach((bucket) => {
+      const keyInBucket = bucket.find((keyInBucket) => keyInBucket === key);
+      if (keyInBucket) {
+        returnedKey = keyInBucket;
+      }
+    });
+    return returnedKey;
+  }
+
+  has(key) {
+    const bucketWithKey = this.buckets.find((bucket) =>
+      bucket.find((keyInBucket) => keyInBucket === key)
+    );
+    if (bucketWithKey) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  remove(key) {
+    if (!this.has(key)) {
+      return;
+    }
+    const bucket = this.buckets.find((bucket) =>
+      bucket.find((keyInBucket) => keyInBucket === key)
+    );
+    const index = bucket.indexOf((keyInBucket) => keyInBucket === 1);
+    bucket.splice(index, 1);
+    this.updateLoadLevels();
+  }
+
+  length() {
+    let count = 0;
+    this.buckets.forEach((bucket) => {
+      count += bucket.length;
+    });
+    return count;
+  }
+
+  clear() {
+    this.buckets.forEach((bucket) => (bucket.length = 0));
+    this.updateLoadLevels();
+  }
+
+  entries() {
+    const entries = [];
+    this.buckets.forEach((bucket) => {
+      bucket.forEach((keyInBucket) => {
+        entries.push(keyInBucket);
+      });
+    });
+    return entries;
+  }
+
+  updateLoadLevels() {
+    this.actualLoad = this.length() / this.capacity;
+  }
+
+  expandBuckets() {
+    if (this.actualLoad > this.loadFactor) {
+      this.capacity = this.capacity * 2;
+      const bucketsNumber = this.buckets.length;
+      for (let i = 0; i < this.capacity - bucketsNumber; i++) {
+        this.buckets.push([]);
+      }
+      this.updateLoadLevels();
+    } else return;
+  }
+}
