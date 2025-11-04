@@ -40,14 +40,10 @@ class HashMap {
   }
 
   get(key) {
-    let value = null;
-    this.buckets.forEach((bucket) => {
-      const pair = bucket.find((pair) => pair[0] === key);
-      if (pair) {
-        value = pair[1];
-      }
-    });
-    return value;
+    const position = this.hash(key).bucket;
+    const bucket = this.buckets[position];
+    const pair = bucket.find((pair) => pair[0] === key);
+    return pair ? pair[1] : null;
   }
 
   has(key) {
